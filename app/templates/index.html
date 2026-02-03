@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GitHub Release Notifier</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>🚀 GitHub Release Notifier</h1>
+        <p class="subtitle">Track releases from your favorite repositories</p>
+      </header>
+
+      <!-- Tag Filter Bar -->
+      <section class="tag-filter-bar">
+        <div class="tag-filters">
+          <a
+            href="/"
+            class="tag-pill {% if not selected_tag %}active{% endif %}"
+            >All</a
+          >
+          {% for tag in tags %}
+          <a
+            href="/?tag={{ tag.id }}"
+            class="tag-pill {% if selected_tag == tag.id %}active{% endif %}"
+            style="--tag-color: {{ tag.color }}"
+          >
+            {{ tag.name }}
+            <span class="tag-count">{{ tag.repo_count }}</span>
+            {% if not tag.notifications_enabled %}
+            <span class="tag-muted" title="Notifications disabled">🔕</span>
+            {% endif %}
+          </a>
+          {% endfor %}
+        </div>
+        <button onclick="toggleTagManager()" class="btn btn-small">
+          🏷️ Manage Tags
+        </button>
+      </section>
+
+      <!-- Tag Manager (hidden by default) -->
+      <section
+        id="tag-manager"
+        class="panel tag-manager-panel"
+        style="display: none"
+      >
+        <div class="panel-header">
+          <h2>🏷️ Tag Management</h2>
+        </div>
+
+        <div class="tag-manager-content">
+          <!-- Add new tag -->
+          <form action="/tags/add" method="post" class="add-tag-form">
+            <input
+              type="text"
+              name="name"
+              placeholder="New tag name"
+              required
+            />
+            <input
+              type="color"
+              name="color"
+              value="#8b5cf6"
+              class="color-picker"
+            />
+            <button type="submit" class="btn btn-primary">Add Tag</button>
+          </form>
+
+          <!-- Existing tags -->
+          <div class="tags-list">
+            {% for tag in tags %}
+            <div class="tag-manager-item" style="--tag-color: {{ tag.color }}">
+              <span
+                class="tag-color-dot"
+                style="background: {{ tag.color }}"
+              ></span>
+              <span class="tag-manager-name">{{ tag.name }}</span>
+              <span class="tag-repo-count">{{ tag.repo_count }} repos</span>
+              <button
+                onclick="toggleTagNotifications({{ tag.id }}, this)"
+                class="btn btn-small {% if tag.notifications_enabled %}btn-success{% else %}btn-muted{% endif %}"
+                title="Toggle notifications"
+              >
+                {{ "🔔" if tag.notifications_enabled else "🔕" }}
+              </button>
+              <form
+                action="/tags/{{ tag.id }}/delete"
+                method="post"
+                class="inline-form"
+                onsubmit="return confirm('Delete tag {{ tag.name }}?')"
+              >
+                <button type="submit" class="btn btn-danger btn-small">
+                  ×
+                </button>
+              </form>
+            </div>
+            {% else %}
+            <p class="empty-state">No tags created yet</p>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+
+      <div class="grid">
+        <!-- Left Panel: Repositories (collapsible on mobile) -->
+        <section class="panel sidebar-panel" id="sidebar-panel">
+          <div class="panel-header sidebar-header" onclick="toggleSidebar()">
+            <h2>📦 Tracked Repositories</h2>
+            <span class="sidebar-toggle-icon">▼</span>
+          </div>
+          <div class="sidebar-content">
+            <form action="/repos/add" method="post" class="add-form">
+              <div class="add-form-row">
+                <input
+                  type="text"
+                  name="repo"
+                  placeholder="owner/repository"
+                  required
+                  pattern="[^/]+/[^/]+"
+                  title="Format: owner/repository"
+                />
+                <button type="submit" class="btn btn-primary">Add</button>
+              </div>
+              {% if tags %}
+              <select name="tag_id" class="tag-select">
+                <option value="">No tag</option>
+                {% for tag in tags %}
+                <option value="{{ tag.id }}">{{ tag.name }}</option>
+                {% endfor %}
+              </select>
+              {% endif %}
+            </form>
+
+            <ul class="repo-list">
+              {% for repo in repos %}
+              <li class="repo-item">
+                <div class="repo-info">
+                  <a
+                    href="https://github.com/{{ repo.owner }}/{{ repo.name }}"
+                    target="_blank"
+                  >
+                    {{ repo.owner }}/{{ repo.name }}
+                  </a>
+                  {% if repo.tag_name %}
+                  <span
+                    class="repo-tag-badge"
+                    style="--tag-color: {{ repo.tag_color }}"
+                  >
+                    {{ repo.tag_name }}
+                  </span>
+                  {% endif %}
+                </div>
+                <div class="repo-actions">
+                  <button
+                    onclick="showTagSelector('{{ repo.owner }}/{{ repo.name }}', {{ repo.tag_id or 'null' }})"
+                    class="btn btn-small"
+                    title="Change tag"
+                  >
+                    🏷️
+                  </button>
+                  <form
+                    action="/repos/remove"
+                    method="post"
+                    class="inline-form"
+                  >
+                    <input
+                      type="hidden"
+                      name="repo"
+                      value="{{ repo.owner }}/{{ repo.name }}"
+                    />
+                    <button
+                      type="submit"
+                      class="btn btn-danger btn-small"
+                      title="Remove"
+                    >
+                      ×
+                    </button>
+                  </form>
+                </div>
+              </li>
+              {% else %}
+              <li class="empty-state">No repositories tracked yet</li>
+              {% endfor %}
+            </ul>
+
+            <div class="panel-footer">
+              <form action="/check-now" method="post">
+                <button type="submit" class="btn btn-secondary">
+                  🔄 Check Now
+                </button>
+              </form>
+            </div>
+          </div>
+          <!-- end sidebar-content -->
+        </section>
+
+        <!-- Right Panel: Recent Releases -->
+        <section class="panel panel-releases">
+          <div class="panel-header">
+            <h2>
+              📋 Recent Releases {% if selected_tag %}(filtered){% endif %}
+            </h2>
+          </div>
+
+          <div class="releases-list">
+            {% for release in releases %} {% set tag_color =
+            release.category_color or '#6e7681' %} {% set repo_hash =
+            (release.owner ~ release.repo_name).__hash__() %} {% set hue =
+            repo_hash % 360 if repo_hash > 0 else (-repo_hash) % 360 %}
+            <article
+              class="release-card"
+              style="--tag-color: {{ tag_color }}; --repo-hue: {{ hue }}"
+            >
+              <div class="release-header">
+                <div class="release-meta">
+                  <span class="repo-indicator"></span>
+                  <a
+                    href="https://github.com/{{ release.owner }}/{{ release.repo_name }}"
+                    target="_blank"
+                    class="release-repo"
+                    >{{ release.owner }}/{{ release.repo_name }}</a
+                  >
+                  <span class="release-version">{{ release.tag_name }}</span>
+                  {% if release.category_name %}
+                  <span
+                    class="release-category"
+                    style="--cat-color: {{ release.category_color or '#8b5cf6' }}"
+                  >
+                    {{ release.category_name }}
+                  </span>
+                  {% endif %}
+                </div>
+                {% if release.published_at %}
+                <time
+                  class="release-time"
+                  data-time="{{ release.published_at }}"
+                  title="{{ release.published_at[8:10] }}.{{ release.published_at[5:7] }}.{{ release.published_at[:4] }} {{ release.published_at[11:16] }} UTC"
+                >
+                  <span class="time-relative"></span>
+                </time>
+                {% endif %}
+              </div>
+              <h3 class="release-title">
+                <a href="{{ release.html_url }}" target="_blank">
+                  {{ release.name or release.tag_name }}
+                </a>
+              </h3>
+              {% if release.body %}
+              <div class="release-notes">
+                <button
+                  class="release-notes-toggle"
+                  onclick="toggleReleaseNotes(this)"
+                >
+                  <span class="toggle-icon">▶</span>
+                  <span class="toggle-text">Show Release Notes</span>
+                </button>
+                <div class="release-notes-content" style="display: none">
+                  <div
+                    class="markdown-body"
+                    data-markdown="{{ release.body | e }}"
+                  ></div>
+                </div>
+              </div>
+              {% endif %}
+            </article>
+            {% else %}
+            <div class="empty-state">
+              <p>No releases yet. Add some repositories to get started!</p>
+            </div>
+            {% endfor %}
+          </div>
+        </section>
+      </div>
+
+      <!-- Notification Settings -->
+      <section class="panel settings-panel">
+        <div class="panel-header">
+          <h2>🔔 Notification Settings</h2>
+        </div>
+        <div class="settings-grid">
+          <div class="setting-item">
+            <span class="setting-label">Telegram</span>
+            <span
+              class="status-badge {% if config.notifications.telegram.enabled %}status-enabled{% else %}status-disabled{% endif %}"
+            >
+              {{ "Enabled" if config.notifications.telegram.enabled else
+              "Disabled" }}
+            </span>
+            {% if config.notifications.telegram.enabled %}
+            <button
+              onclick="testNotification('telegram')"
+              class="btn btn-small"
+            >
+              Test
+            </button>
+            {% endif %}
+          </div>
+          <div class="setting-item">
+            <span class="setting-label">Discord</span>
+            <span
+              class="status-badge {% if config.notifications.discord.enabled %}status-enabled{% else %}status-disabled{% endif %}"
+            >
+              {{ "Enabled" if config.notifications.discord.enabled else
+              "Disabled" }}
+            </span>
+            {% if config.notifications.discord.enabled %}
+            <button onclick="testNotification('discord')" class="btn btn-small">
+              Test
+            </button>
+            {% endif %}
+          </div>
+          <div class="setting-item">
+            <span class="setting-label">Check Interval</span>
+            <span class="setting-value"
+              >{{ config.check_interval }} minutes</span
+            >
+          </div>
+          <div class="setting-item">
+            <button onclick="reloadConfig()" class="btn btn-small">
+              🔄 Reload Config
+            </button>
+          </div>
+        </div>
+        <p class="settings-hint">
+          Secrets are loaded from .env file. Edit .env and click "Reload Config"
+          to apply changes without restart.
+        </p>
+      </section>
+
+      <footer>
+        <p>
+          GitHub Release Notifier • <a href="/api/releases">API</a> •
+          <a href="/api/tags">Tags API</a> •
+          <a href="/health">Health</a>
+        </p>
+      </footer>
+    </div>
+
+    <!-- Tag Selector Modal -->
+    <div id="tag-selector-modal" class="modal" style="display: none">
+      <div class="modal-content">
+        <h3>Assign Tag</h3>
+        <form id="tag-selector-form" action="/repos/set-tag" method="post">
+          <input type="hidden" id="tag-selector-repo" name="repo" />
+          <select name="tag_id" id="tag-selector-select" class="tag-select">
+            <option value="">No tag</option>
+            {% for tag in tags %}
+            <option value="{{ tag.id }}">{{ tag.name }}</option>
+            {% endfor %}
+          </select>
+          <div class="modal-actions">
+            <button
+              type="button"
+              onclick="closeTagSelector()"
+              class="btn btn-secondary"
+            >
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      function toggleTagManager() {
+        const manager = document.getElementById("tag-manager");
+        manager.style.display =
+          manager.style.display === "none" ? "block" : "none";
+      }
+
+      async function toggleTagNotifications(tagId, button) {
+        try {
+          const response = await fetch(`/tags/${tagId}/toggle-notifications`, {
+            method: "POST",
+          });
+          const data = await response.json();
+          if (response.ok) {
+            button.textContent = data.notifications_enabled ? "🔔" : "🔕";
+            button.className = data.notifications_enabled
+              ? "btn btn-small btn-success"
+              : "btn btn-small btn-muted";
+          }
+        } catch (error) {
+          alert("Error toggling notifications");
+        }
+      }
+
+      function showTagSelector(repo, currentTagId) {
+        document.getElementById("tag-selector-repo").value = repo;
+        document.getElementById("tag-selector-select").value =
+          currentTagId || "";
+        document.getElementById("tag-selector-modal").style.display = "flex";
+      }
+
+      function closeTagSelector() {
+        document.getElementById("tag-selector-modal").style.display = "none";
+      }
+
+      async function testNotification(type) {
+        try {
+          const response = await fetch(`/test/${type}`, { method: "POST" });
+          const data = await response.json();
+          if (response.ok) {
+            alert("✅ " + data.message);
+          } else {
+            alert("❌ " + data.detail);
+          }
+        } catch (error) {
+          alert("❌ Error: " + error.message);
+        }
+      }
+
+      async function reloadConfig() {
+        try {
+          const response = await fetch("/api/reload-config", {
+            method: "POST",
+          });
+          const data = await response.json();
+          if (response.ok) {
+            alert(
+              "✅ " +
+                data.message +
+                "\n\nTelegram: " +
+                (data.config.telegram_configured
+                  ? "Configured"
+                  : "Not configured") +
+                "\nDiscord: " +
+                (data.config.discord_configured
+                  ? "Configured"
+                  : "Not configured"),
+            );
+            location.reload();
+          } else {
+            alert("❌ " + data.detail);
+          }
+        } catch (error) {
+          alert("❌ Error: " + error.message);
+        }
+      }
+
+      function toggleReleaseNotes(button) {
+        const content = button.nextElementSibling;
+        const icon = button.querySelector(".toggle-icon");
+        const isHidden = content.style.display === "none";
+
+        content.style.display = isHidden ? "block" : "none";
+        icon.textContent = isHidden ? "▼" : "▶";
+        button.querySelector(".toggle-text").textContent = isHidden
+          ? "Hide Release Notes"
+          : "Show Release Notes";
+
+        // Render markdown on first open
+        if (isHidden) {
+          const markdownDiv = content.querySelector(".markdown-body");
+          if (markdownDiv && !markdownDiv.dataset.rendered) {
+            const rawMarkdown = markdownDiv.dataset.markdown;
+            if (rawMarkdown && rawMarkdown.trim()) {
+              // Decode HTML entities
+              const textarea = document.createElement("textarea");
+              textarea.innerHTML = rawMarkdown;
+              const decoded = textarea.value;
+              // Render markdown
+              markdownDiv.innerHTML = marked.parse(decoded);
+            } else {
+              markdownDiv.innerHTML =
+                '<p class="no-notes">No release notes available.</p>';
+            }
+            markdownDiv.dataset.rendered = "true";
+          }
+        }
+      }
+
+      // Sidebar toggle for mobile
+      function toggleSidebar() {
+        const panel = document.getElementById("sidebar-panel");
+        panel.classList.toggle("collapsed");
+      }
+
+      // Relative time formatting
+      function formatRelativeTime(dateString) {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return "just now";
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays < 7) return `${diffDays}d ago`;
+        if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+        if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo ago`;
+        return `${Math.floor(diffDays / 365)}y ago`;
+      }
+
+      // Initialize relative times
+      document.addEventListener("DOMContentLoaded", function () {
+        document.querySelectorAll(".release-time").forEach((el) => {
+          const timeStr = el.dataset.time;
+          if (timeStr) {
+            el.querySelector(".time-relative").textContent =
+              formatRelativeTime(timeStr);
+          }
+        });
+
+        // Collapse sidebar by default on mobile
+        if (window.innerWidth <= 768) {
+          document.getElementById("sidebar-panel").classList.add("collapsed");
+        }
+      });
+
+      // Close modal on outside click
+      document
+        .getElementById("tag-selector-modal")
+        .addEventListener("click", function (e) {
+          if (e.target === this) closeTagSelector();
+        });
+    </script>
+  </body>
+</html>

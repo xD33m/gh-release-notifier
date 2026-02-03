@@ -1,0 +1,40 @@
+# Progress
+
+## Completed
+- [x] Project architecture designed
+- [x] FastAPI backend with async SQLite
+- [x] GitHub API client for fetching releases
+- [x] Telegram notification support
+- [x] Discord webhook notification support
+- [x] Background scheduler for periodic checks
+- [x] Web UI for managing repos and viewing releases
+- [x] Docker + docker-compose setup
+- [x] Traefik integration labels
+- [x] Configuration via YAML and environment variables
+- [x] README with full documentation
+- [x] Tags/Categories system
+- [x] Filter by tag in UI and API
+- [x] Enable/disable notifications per tag
+- [x] Tag management UI (add, delete, toggle notifications)
+- [x] Assign tags to repositories
+
+## Files Created
+- `requirements.txt` - Python dependencies
+- `config.yaml` - Configuration template
+- `app/__init__.py` - Package init
+- `app/config.py` - Configuration loading
+- `app/database.py` - SQLite database layer
+- `app/github_client.py` - GitHub API client
+- `app/scheduler.py` - APScheduler background jobs
+- `app/main.py` - FastAPI application
+- `app/notifications/telegram.py` - Telegram notifications
+- `app/notifications/discord.py` - Discord notifications
+- `app/templates/index.html` - Web UI template
+- `static/styles.css` - Dark theme CSS
+- `Dockerfile` - Container build
+- `docker-compose.yml` - Orchestration with Traefik
+- `README.md` - Documentation
+- `.gitignore` - Git ignore rules
+
+## Ready for Deployment
+The project is complete and ready to deploy on Raspberry Pi.

@@ -1,0 +1,25 @@
+services:
+  release-notifier:
+    build: .
+    container_name: github-release-notifier
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data           # Persist database
+      - ./config.yaml:/app/config/config.yaml:ro  # Mount config
+      - ./.env:/app/.env:ro        # Mount secrets (hot-reloadable)
+    env_file:
+      - .env                       # Load secrets as env vars
+    environment:
+      - TZ=UTC
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.release-notifier.entrypoints=https"
+      - "traefik.http.routers.release-notifier.rule=Host(`releases.lucask.dev`)"
+      - "traefik.http.services.release-notifier.loadbalancer.server.port=8000"
+      - "traefik.http.routers.release-notifier.middlewares=pocketid-auth@file"
+
+networks:
+  web:
+    external: true

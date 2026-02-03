@@ -1,0 +1,33 @@
+# GitHub Release Notifier Configuration
+
+# GitHub Personal Access Token - SET IN .env FILE
+# github_token: ""
+
+# How often to check for new releases (in minutes)
+check_interval: 30
+
+# Notification settings
+# Secrets (bot_token, chat_id, webhook_url) should be in .env file
+notifications:
+  telegram:
+    enabled: true
+    # bot_token and chat_id loaded from .env
+
+  discord:
+    enabled: true
+    # webhook_url loaded from .env
+
+# Repositories to track (can also be managed via UI)
+# Format: owner/repo
+repositories:
+  # emu
+  - eden-emulator/Releases
+  - MrPurple666/purple-turnip
+  - whitebelyash/freedreno_turnip-CI
+  # root
+  - WildKernels/OnePlus_KernelSU_SUSFS
+  - KOWX712/PlayIntegrityFix
+  - sidex15/susfs4ksu-module
+  - JingMatrix/TEESimulator
+  - JingMatrix/LSPosed
+  - Dr-TSNG/ZygiskNext

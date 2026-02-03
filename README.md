@@ -1,0 +1,176 @@
+# GitHub Release Notifier
+
+A lightweight, self-hosted application to track GitHub releases and get notified via Telegram or Discord. Perfect for running on a Raspberry Pi.
+
+![Dashboard Preview](https://via.placeholder.com/800x400?text=GitHub+Release+Notifier)
+
+## Features
+
+- 🔍 **Track any GitHub repository** - Add repos via the web UI
+- 🔔 **Multiple notification channels** - Telegram and Discord support
+- 🖥️ **Clean web interface** - View all releases in one place
+- 🐳 **Docker-ready** - Easy deployment with docker-compose
+- 🍓 **Raspberry Pi optimized** - Lightweight Python + SQLite stack
+- ⚡ **Configurable check interval** - Balance between freshness and API limits
+
+## Quick Start
+
+### 1. Clone and Configure
+
+```bash
+git clone https://github.com/yourusername/release-notif.git
+cd release-notif
+```
+
+Edit `config.yaml` with your settings:
+
+```yaml
+# Optional: GitHub token for higher rate limits
+github_token: "ghp_your_token_here"
+
+# Check interval in minutes
+check_interval: 30
+
+# Notification settings
+notifications:
+  telegram:
+    enabled: true
+    bot_token: "123456:ABC-DEF..."
+    chat_id: "123456789"
+
+  discord:
+    enabled: true
+    webhook_url: "https://discord.com/api/webhooks/..."
+
+# Initial repositories to track
+repositories:
+  - microsoft/vscode
+  - docker/compose
+```
+
+### 2. Run with Docker Compose
+
+```bash
+docker-compose up -d
+```
+
+The app will be available at `http://localhost:8080`
+
+### 3. Configure Traefik (Optional)
+
+The `docker-compose.yml` includes Traefik labels. Update the host rule:
+
+```yaml
+- "traefik.http.routers.release-notifier.rule=Host(`releases.yourdomain.com`)"
+```
+
+## Configuration
+
+### Environment Variables
+
+You can override config.yaml settings with environment variables:
+
+| Variable              | Description                          |
+| --------------------- | ------------------------------------ |
+| `GITHUB_TOKEN`        | GitHub Personal Access Token         |
+| `CHECK_INTERVAL`      | Minutes between checks (default: 30) |
+| `TELEGRAM_BOT_TOKEN`  | Telegram bot token from @BotFather   |
+| `TELEGRAM_CHAT_ID`    | Your Telegram chat/group ID          |
+| `DISCORD_WEBHOOK_URL` | Discord webhook URL                  |
+
+### Getting Notification Credentials
+
+#### Telegram
+
+1. Message [@BotFather](https://t.me/BotFather) and create a new bot
+2. Copy the bot token
+3. Message [@userinfobot](https://t.me/userinfobot) to get your chat ID
+4. Start a conversation with your bot
+
+#### Discord
+
+1. Go to Server Settings → Integrations → Webhooks
+2. Create a new webhook
+3. Copy the webhook URL
+
+#### GitHub Token (Optional but Recommended)
+
+1. Go to [GitHub Settings → Tokens](https://github.com/settings/tokens)
+2. Generate a new token (classic) with `public_repo` scope
+3. Add to config or `GITHUB_TOKEN` env variable
+
+## API Endpoints
+
+| Endpoint         | Method | Description                      |
+| ---------------- | ------ | -------------------------------- |
+| `/`              | GET    | Web dashboard                    |
+| `/api/releases`  | GET    | List recent releases (JSON)      |
+| `/api/repos`     | GET    | List tracked repositories (JSON) |
+| `/repos/add`     | POST   | Add a repository                 |
+| `/repos/remove`  | POST   | Remove a repository              |
+| `/check-now`     | POST   | Trigger immediate check          |
+| `/test/telegram` | POST   | Test Telegram notification       |
+| `/test/discord`  | POST   | Test Discord notification        |
+| `/health`        | GET    | Health check                     |
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Docker Container                      │
+│  ┌─────────────┐  ┌──────────────┐  ┌────────────────┐ │
+│  │  FastAPI    │  │  APScheduler │  │  Notification  │ │
+│  │  Web UI     │  │  (Background)│  │  Service       │ │
+│  └─────────────┘  └──────────────┘  └────────────────┘ │
+│         │                │                   │          │
+│         └────────────────┼───────────────────┘          │
+│                          │                              │
+│                   ┌──────────────┐                      │
+│                   │   SQLite DB  │                      │
+│                   └──────────────┘                      │
+└─────────────────────────────────────────────────────────┘
+```
+
+## Development
+
+### Local Setup
+
+```bash
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # or `venv\Scripts\activate` on Windows
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the application
+uvicorn app.main:app --reload
+```
+
+### Project Structure
+
+```
+release-notif/
+├── app/
+│   ├── __init__.py
+│   ├── main.py              # FastAPI application
+│   ├── config.py            # Configuration management
+│   ├── database.py          # SQLite database operations
+│   ├── github_client.py     # GitHub API client
+│   ├── scheduler.py         # Background job scheduler
+│   ├── notifications/
+│   │   ├── telegram.py      # Telegram notifications
+│   │   └── discord.py       # Discord notifications
+│   └── templates/
+│       └── index.html       # Web UI template
+├── static/
+│   └── styles.css           # UI styling
+├── Dockerfile
+├── docker-compose.yml
+├── requirements.txt
+└── config.yaml
+```
+
+## License
+
+MIT License
