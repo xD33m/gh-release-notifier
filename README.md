@@ -2,7 +2,7 @@
 
 A lightweight, self-hosted application to track GitHub releases and get notified via Telegram or Discord. Perfect for running on a Raspberry Pi.
 
-![Dashboard Preview](https://via.placeholder.com/800x400?text=GitHub+Release+Notifier)
+![Dashboard Preview](assets/img/preview.png)
 
 ## Features
 
@@ -18,34 +18,31 @@ A lightweight, self-hosted application to track GitHub releases and get notified
 ### 1. Clone and Configure
 
 ```bash
-git clone https://github.com/yourusername/release-notif.git
-cd release-notif
+git clone https://github.com/xD33m/gh-release-notifier.git
+cd gh-release-notifier
 ```
 
-Edit `config.yaml` with your settings:
+Copy the example environment file and fill in your values:
 
-```yaml
-# Optional: GitHub token for higher rate limits
-github_token: "ghp_your_token_here"
+```bash
+cp .env.example .env
+```
 
-# Check interval in minutes
-check_interval: 30
+Edit `.env` with your settings:
 
-# Notification settings
-notifications:
-  telegram:
-    enabled: true
-    bot_token: "123456:ABC-DEF..."
-    chat_id: "123456789"
+```bash
+# GitHub Personal Access Token (optional, for higher rate limits)
+GITHUB_TOKEN=ghp_your_token_here
 
-  discord:
-    enabled: true
-    webhook_url: "https://discord.com/api/webhooks/..."
+# Telegram notifications
+TELEGRAM_BOT_TOKEN=123456:ABC-DEF...
+TELEGRAM_CHAT_ID=123456789
 
-# Initial repositories to track
-repositories:
-  - microsoft/vscode
-  - docker/compose
+# Discord notifications  
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+
+# Check interval in minutes (optional, default: 30)
+CHECK_INTERVAL=30
 ```
 
 ### 2. Run with Docker Compose
@@ -68,15 +65,17 @@ The `docker-compose.yml` includes Traefik labels. Update the host rule:
 
 ### Environment Variables
 
-You can override config.yaml settings with environment variables:
+All configuration is done via environment variables in the `.env` file:
 
-| Variable              | Description                          |
-| --------------------- | ------------------------------------ |
-| `GITHUB_TOKEN`        | GitHub Personal Access Token         |
-| `CHECK_INTERVAL`      | Minutes between checks (default: 30) |
-| `TELEGRAM_BOT_TOKEN`  | Telegram bot token from @BotFather   |
-| `TELEGRAM_CHAT_ID`    | Your Telegram chat/group ID          |
-| `DISCORD_WEBHOOK_URL` | Discord webhook URL                  |
+| Variable              | Required | Description                          |
+| --------------------- | -------- | ------------------------------------ |
+| `GITHUB_TOKEN`        | No       | GitHub Personal Access Token         |
+| `CHECK_INTERVAL`      | No       | Minutes between checks (default: 30) |
+| `TELEGRAM_BOT_TOKEN`  | No*      | Telegram bot token from @BotFather   |
+| `TELEGRAM_CHAT_ID`    | No*      | Your Telegram chat/group ID          |
+| `DISCORD_WEBHOOK_URL` | No*      | Discord webhook URL                  |
+
+*At least one notification method (Telegram or Discord) should be configured.
 
 ### Getting Notification Credentials
 
@@ -97,7 +96,7 @@ You can override config.yaml settings with environment variables:
 
 1. Go to [GitHub Settings → Tokens](https://github.com/settings/tokens)
 2. Generate a new token (classic) with `public_repo` scope
-3. Add to config or `GITHUB_TOKEN` env variable
+3. Add to your `.env` file as `GITHUB_TOKEN`
 
 ## API Endpoints
 
@@ -143,6 +142,9 @@ source venv/bin/activate  # or `venv\Scripts\activate` on Windows
 # Install dependencies
 pip install -r requirements.txt
 
+# Copy environment file
+cp .env.example .env
+
 # Run the application
 uvicorn app.main:app --reload
 ```
@@ -150,7 +152,7 @@ uvicorn app.main:app --reload
 ### Project Structure
 
 ```
-release-notif/
+gh-release-notifier/
 ├── app/
 │   ├── __init__.py
 │   ├── main.py              # FastAPI application
@@ -163,12 +165,15 @@ release-notif/
 │   │   └── discord.py       # Discord notifications
 │   └── templates/
 │       └── index.html       # Web UI template
+├── assets/
+│   └── img/
+│       └── preview.png      # Dashboard preview image
 ├── static/
 │   └── styles.css           # UI styling
+├── .env.example             # Example environment file
 ├── Dockerfile
 ├── docker-compose.yml
-├── requirements.txt
-└── config.yaml
+└── requirements.txt
 ```
 
 ## License
