@@ -38,7 +38,7 @@ GITHUB_TOKEN=ghp_your_token_here
 TELEGRAM_BOT_TOKEN=123456:ABC-DEF...
 TELEGRAM_CHAT_ID=123456789
 
-# Discord notifications  
+# Discord notifications
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 
 # Check interval in minutes (optional, default: 30)
@@ -71,11 +71,11 @@ All configuration is done via environment variables in the `.env` file:
 | --------------------- | -------- | ------------------------------------ |
 | `GITHUB_TOKEN`        | No       | GitHub Personal Access Token         |
 | `CHECK_INTERVAL`      | No       | Minutes between checks (default: 30) |
-| `TELEGRAM_BOT_TOKEN`  | No*      | Telegram bot token from @BotFather   |
-| `TELEGRAM_CHAT_ID`    | No*      | Your Telegram chat/group ID          |
-| `DISCORD_WEBHOOK_URL` | No*      | Discord webhook URL                  |
+| `TELEGRAM_BOT_TOKEN`  | No\*     | Telegram bot token from @BotFather   |
+| `TELEGRAM_CHAT_ID`    | No\*     | Your Telegram chat/group ID          |
+| `DISCORD_WEBHOOK_URL` | No\*     | Discord webhook URL                  |
 
-*At least one notification method (Telegram or Discord) should be configured.
+\*At least one notification method (Telegram or Discord) should be configured.
 
 ### Getting Notification Credentials
 
@@ -136,8 +136,9 @@ All configuration is done via environment variables in the `.env` file:
 
 ```bash
 # Create virtual environment
+
 python -m venv venv
-source venv/bin/activate  # or `venv\Scripts\activate` on Windows
+source venv/bin/activate # or `venv\Scripts\activate` on Windows
 
 # Install dependencies
 pip install -r requirements.txt
