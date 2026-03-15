@@ -18,7 +18,7 @@ services:
       - "traefik.http.routers.release-notifier.entrypoints=https"
       - "traefik.http.routers.release-notifier.rule=Host(`releases.lucask.dev`)"
       - "traefik.http.services.release-notifier.loadbalancer.server.port=8000"
-      - "traefik.http.routers.release-notifier.middlewares=pocketid-auth@file"
+      - "traefik.http.routers.release-notifier.middlewares=secured-auth@file"
 
 networks:
   web:
