@@ -39,8 +39,7 @@ async def index(request: Request, tag: Optional[int] = Query(None)):
     releases = await database.get_releases(limit=50, tag_id=tag)
     tags = await database.get_tags()
     
-    return templates.TemplateResponse("index.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "index.html", {
         "repos": repos,
         "releases": releases,
         "tags": tags,
