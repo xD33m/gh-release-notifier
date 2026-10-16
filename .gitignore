@@ -21,6 +21,7 @@ wheels/
 
 # Virtual environments
 venv/
+.venv/
 ENV/
 env/
 
@@ -41,3 +42,7 @@ data/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/

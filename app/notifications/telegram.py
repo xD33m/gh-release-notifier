@@ -77,7 +77,7 @@ async def test_telegram() -> tuple[bool, str]:
             try:
                 error_body = e.response.json()
                 error_desc = error_body.get("description", str(e.response.status_code))
-            except:
+            except Exception:
                 error_desc = str(e.response.status_code)
             return False, f"Telegram error: {error_desc}"
         except Exception as e:

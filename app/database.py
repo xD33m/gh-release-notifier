@@ -1,6 +1,5 @@
 import aiosqlite
 from pathlib import Path
-from datetime import datetime
 from typing import Optional
 
 DATABASE_PATH = Path("/app/data/releases.db")
@@ -52,7 +51,7 @@ async def init_db():
         # Migration: add tag_id column if it doesn't exist
         try:
             await db.execute("ALTER TABLE repositories ADD COLUMN tag_id INTEGER REFERENCES tags(id) ON DELETE SET NULL")
-        except:
+        except Exception:
             pass  # Column already exists
         
         await db.commit()
