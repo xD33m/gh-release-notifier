@@ -65,3 +65,40 @@ def test_releases_are_newest_first():
     releases = run(database.get_releases())
     assert [r["tag_name"] for r in releases] == ["v2.0.0", "v1.0.0"]
     assert releases[0]["owner"] == "acme" and releases[0]["repo_name"] == "widget"
+
+
+def test_deleting_a_tag_untags_its_repositories():
+    tag_id = run(database.add_tag("tools"))
+    run(database.add_repository("acme", "widget", tag_id))
+
+    run(database.delete_tag(tag_id))
+
+    (repo,) = run(database.get_repositories())
+    assert repo["tag_id"] is None
+
+
+def test_removing_a_repository_also_removes_its_releases():
+    repo_id = run(database.add_repository("acme", "widget"))
+    run(database.add_release(repo_id, make_release("v1.0.0")))
+
+    assert run(database.remove_repository("acme", "widget")) is True
+    assert run(database.get_releases()) == []
+
+
+def test_init_db_cleans_up_rows_left_dangling_without_foreign_keys(temp_db):
+    import sqlite3
+
+    tag_id = run(database.add_tag("tools"))
+    repo_id = run(database.add_repository("acme", "widget", tag_id))
+    run(database.add_release(repo_id, make_release("v1.0.0")))
+    # Simulate a database written before foreign keys were enforced
+    with sqlite3.connect(temp_db) as db:
+        db.execute("DELETE FROM tags")
+        db.execute("INSERT INTO releases (repo_id, tag_name) VALUES (999, 'v0.1.0')")
+
+    run(database.init_db())
+
+    (repo,) = run(database.get_repositories())
+    assert repo["tag_id"] is None
+    with sqlite3.connect(temp_db) as db:
+        assert db.execute("SELECT repo_id FROM releases").fetchall() == [(repo_id,)]

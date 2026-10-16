@@ -1,14 +1,22 @@
 import aiosqlite
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
 DATABASE_PATH = Path("/app/data/releases.db")
 
+@asynccontextmanager
+async def _connect():
+    """Open the database with foreign keys enforced (SQLite leaves them off by default)."""
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        yield db
+
 async def init_db():
     """Initialize the SQLite database."""
     DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
     
-    async with aiosqlite.connect(DATABASE_PATH) as db:
+    async with _connect() as db:
         await db.execute("""
             CREATE TABLE IF NOT EXISTS tags (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,13 +62,20 @@ async def init_db():
         except Exception:
             pass  # Column already exists
         
+        # Clean up rows left dangling before foreign keys were enforced
+        await db.execute(
+            "UPDATE repositories SET tag_id = NULL "
+            "WHERE tag_id IS NOT NULL AND tag_id NOT IN (SELECT id FROM tags)"
+        )
+        await db.execute("DELETE FROM releases WHERE repo_id NOT IN (SELECT id FROM repositories)")
+        
         await db.commit()
 
 # ============ Tags ============
 
 async def add_tag(name: str, color: str = "#8b5cf6") -> Optional[int]:
     """Add a new tag/category."""
-    async with aiosqlite.connect(DATABASE_PATH) as db:
+    async with _connect() as db:
         try:
             cursor = await db.execute(
                 "INSERT INTO tags (name, color) VALUES (?, ?)",
@@ -73,7 +88,7 @@ async def add_tag(name: str, color: str = "#8b5cf6") -> Optional[int]:
 
 async def get_tags() -> list[dict]:
     """Get all tags with repository counts."""
-    async with aiosqlite.connect(DATABASE_PATH) as db:
+    async with _connect() as db:
         db.row_factory = aiosqlite.Row
         cursor = await db.execute("""
             SELECT t.*, COUNT(r.id) as repo_count
@@ -87,7 +102,7 @@ async def get_tags() -> list[dict]:
 
 async def get_tag_by_id(tag_id: int) -> Optional[dict]:
     """Get a tag by ID."""
-    async with aiosqlite.connect(DATABASE_PATH) as db:
+    async with _connect() as db:
         db.row_factory = aiosqlite.Row
         cursor = await db.execute("SELECT * FROM tags WHERE id = ?", (tag_id,))
         row = await cursor.fetchone()
@@ -95,7 +110,7 @@ async def get_tag_by_id(tag_id: int) -> Optional[dict]:
 
 async def update_tag(tag_id: int, name: str = None, color: str = None, notifications_enabled: bool = None) -> bool:
     """Update a tag's properties."""
-    async with aiosqlite.connect(DATABASE_PATH) as db:
+    async with _connect() as db:
         updates = []
         params = []
         if name is not None:
@@ -118,14 +133,14 @@ async def update_tag(tag_id: int, name: str = None, color: str = None, notificat
 
 async def delete_tag(tag_id: int) -> bool:
     """Delete a tag (repos will have tag_id set to NULL)."""
-    async with aiosqlite.connect(DATABASE_PATH) as db:
+    async with _connect() as db:
         cursor = await db.execute("DELETE FROM tags WHERE id = ?", (tag_id,))
         await db.commit()
         return cursor.rowcount > 0
 
 async def set_repo_tag(owner: str, name: str, tag_id: Optional[int]) -> bool:
     """Assign a tag to a repository."""
-    async with aiosqlite.connect(DATABASE_PATH) as db:
+    async with _connect() as db:
         cursor = await db.execute(
             "UPDATE repositories SET tag_id = ? WHERE owner = ? AND name = ?",
             (tag_id, owner, name)
@@ -135,7 +150,7 @@ async def set_repo_tag(owner: str, name: str, tag_id: Optional[int]) -> bool:
 
 async def add_repository(owner: str, name: str, tag_id: Optional[int] = None) -> Optional[int]:
     """Add a repository to track."""
-    async with aiosqlite.connect(DATABASE_PATH) as db:
+    async with _connect() as db:
         try:
             cursor = await db.execute(
                 "INSERT INTO repositories (owner, name, tag_id) VALUES (?, ?, ?)",
@@ -147,8 +162,13 @@ async def add_repository(owner: str, name: str, tag_id: Optional[int] = None) ->
             return None
 
 async def remove_repository(owner: str, name: str) -> bool:
-    """Remove a repository from tracking."""
-    async with aiosqlite.connect(DATABASE_PATH) as db:
+    """Remove a repository from tracking, together with its releases."""
+    async with _connect() as db:
+        await db.execute(
+            "DELETE FROM releases WHERE repo_id IN "
+            "(SELECT id FROM repositories WHERE owner = ? AND name = ?)",
+            (owner, name)
+        )
         cursor = await db.execute(
             "DELETE FROM repositories WHERE owner = ? AND name = ?",
             (owner, name)
@@ -158,7 +178,7 @@ async def remove_repository(owner: str, name: str) -> bool:
 
 async def get_repositories(tag_id: Optional[int] = None) -> list[dict]:
     """Get all tracked repositories, optionally filtered by tag."""
-    async with aiosqlite.connect(DATABASE_PATH) as db:
+    async with _connect() as db:
         db.row_factory = aiosqlite.Row
         if tag_id is not None:
             cursor = await db.execute(
@@ -182,7 +202,7 @@ async def get_repositories(tag_id: Optional[int] = None) -> list[dict]:
 
 async def get_repositories_with_notifications() -> list[dict]:
     """Get repositories that have notifications enabled (via their tag)."""
-    async with aiosqlite.connect(DATABASE_PATH) as db:
+    async with _connect() as db:
         db.row_factory = aiosqlite.Row
         cursor = await db.execute(
             """SELECT r.*, t.name as tag_name, t.color as tag_color, t.notifications_enabled as tag_notifications
@@ -196,7 +216,7 @@ async def get_repositories_with_notifications() -> list[dict]:
 
 async def get_repository_by_name(owner: str, name: str) -> Optional[dict]:
     """Get a repository by owner and name."""
-    async with aiosqlite.connect(DATABASE_PATH) as db:
+    async with _connect() as db:
         db.row_factory = aiosqlite.Row
         cursor = await db.execute(
             "SELECT * FROM repositories WHERE owner = ? AND name = ?",
@@ -207,7 +227,7 @@ async def get_repository_by_name(owner: str, name: str) -> Optional[dict]:
 
 async def add_release(repo_id: int, release_data: dict) -> tuple[Optional[int], bool]:
     """Add a release. Returns (id, is_new)."""
-    async with aiosqlite.connect(DATABASE_PATH) as db:
+    async with _connect() as db:
         try:
             cursor = await db.execute(
                 """INSERT INTO releases (repo_id, tag_name, name, body, html_url, published_at)
@@ -228,7 +248,7 @@ async def add_release(repo_id: int, release_data: dict) -> tuple[Optional[int], 
 
 async def get_releases(limit: int = 50, tag_id: Optional[int] = None) -> list[dict]:
     """Get recent releases across all repositories, optionally filtered by tag."""
-    async with aiosqlite.connect(DATABASE_PATH) as db:
+    async with _connect() as db:
         db.row_factory = aiosqlite.Row
         if tag_id is not None:
             cursor = await db.execute(
@@ -256,7 +276,7 @@ async def get_releases(limit: int = 50, tag_id: Optional[int] = None) -> list[di
 
 async def get_releases_for_repo(repo_id: int, limit: int = 20) -> list[dict]:
     """Get releases for a specific repository."""
-    async with aiosqlite.connect(DATABASE_PATH) as db:
+    async with _connect() as db:
         db.row_factory = aiosqlite.Row
         cursor = await db.execute(
             """SELECT * FROM releases WHERE repo_id = ? ORDER BY published_at DESC LIMIT ?""",
@@ -267,7 +287,7 @@ async def get_releases_for_repo(repo_id: int, limit: int = 20) -> list[dict]:
 
 async def mark_release_notified(release_id: int):
     """Mark a release as notified."""
-    async with aiosqlite.connect(DATABASE_PATH) as db:
+    async with _connect() as db:
         await db.execute(
             "UPDATE releases SET notified = 1 WHERE id = ?",
             (release_id,)
@@ -276,7 +296,7 @@ async def mark_release_notified(release_id: int):
 
 async def get_unnotified_releases() -> list[dict]:
     """Get releases that haven't been notified yet."""
-    async with aiosqlite.connect(DATABASE_PATH) as db:
+    async with _connect() as db:
         db.row_factory = aiosqlite.Row
         cursor = await db.execute(
             """SELECT r.*, repo.owner, repo.name as repo_name
