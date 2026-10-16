@@ -163,11 +163,11 @@ tag is muted, and marked as notified.
 
 ## Trade-offs and limitations
 
-- **No built-in authentication.** Every endpoint, including adding repositories,
-  sending test messages and `/api/debug-config` (which shows the Telegram chat
-  ID and the first characters of the bot token), is open. Run it on a trusted
-  network or behind a reverse proxy with authentication, as the author does with
-  Traefik.
+- **No built-in authentication.** Every endpoint, including adding repositories
+  and sending test messages, is open. Secrets are never returned
+  (`/api/debug-config` only reports whether each one is set), but run it on a
+  trusted network or behind a reverse proxy with authentication, as the author
+  does with Traefik.
 - **Polling, not webhooks.** You cannot receive webhooks for other people's
   repositories, so the app polls: one request per repository per check,
   sequentially with a one-second pause. Without `GITHUB_TOKEN` GitHub allows 60
@@ -182,9 +182,10 @@ tag is muted, and marked as notified.
   re-added on every start, so remove them from the file, not just the UI.
 - **Interval changes need a restart.** "Reload config" refreshes secrets and
   channel settings, but the scheduler keeps the interval it started with.
-- **Untrusted Markdown.** Release notes are rendered in the browser with
-  `marked` (loaded from jsDelivr) without sanitisation, so only track
-  repositories you trust.
+- **Release notes come from third parties.** They are rendered in the browser
+  with a pinned `marked` build and sanitised with DOMPurify (both loaded from
+  jsDelivr with Subresource Integrity), so the dashboard needs internet access
+  to show them.
 - **Default config in the image.** The image contains this repository's
   `config.yaml` as a fallback; mount your own at `/app/config/config.yaml`.
 
