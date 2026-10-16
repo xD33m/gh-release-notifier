@@ -119,8 +119,7 @@ async def debug_config():
         "telegram": {
             "enabled": config.notifications.telegram.enabled,
             "bot_token_set": bool(config.notifications.telegram.bot_token),
-            "bot_token_preview": config.notifications.telegram.bot_token[:10] + "..." if config.notifications.telegram.bot_token else None,
-            "chat_id": config.notifications.telegram.chat_id,
+            "chat_id_set": bool(config.notifications.telegram.chat_id),
         },
         "discord": {
             "enabled": config.notifications.discord.enabled,

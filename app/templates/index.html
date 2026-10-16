@@ -9,7 +9,16 @@
       rel="icon"
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>"
     />
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/marked@18.0.14/lib/marked.umd.js"
+      integrity="sha384-2vpGtuKqJvFlwJqYnf/wUMuzUfhUnYBt9oay0e2yaFcq0Dh6/aEbQ8YAOeKGzlYo"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/dompurify@3.4.16/dist/purify.min.js"
+      integrity="sha384-a7SzOxErzJ3ZpQz0zJ32d67dSitNzPcbfybc/ykU9KJhMgZkwqfSxlhhdJRS+XGL"
+      crossorigin="anonymous"
+    ></script>
   </head>
   <body>
     <div class="container">
@@ -467,8 +476,8 @@
               const textarea = document.createElement("textarea");
               textarea.innerHTML = rawMarkdown;
               const decoded = textarea.value;
-              // Render markdown
-              markdownDiv.innerHTML = marked.parse(decoded);
+              // Render markdown; release notes come from third-party repos, so sanitise
+              markdownDiv.innerHTML = DOMPurify.sanitize(marked.parse(decoded));
             } else {
               markdownDiv.innerHTML =
                 '<p class="no-notes">No release notes available.</p>';

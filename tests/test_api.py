@@ -81,3 +81,13 @@ def test_tags_api(client):
 
     toggled = client.post(f"/tags/{tag['id']}/toggle-notifications").json()
     assert toggled == {"status": "success", "notifications_enabled": False}
+
+
+def test_debug_config_does_not_leak_telegram_credentials(client, set_config):
+    set_config(notifications={"telegram": {"enabled": True, "bot_token": "123456789:SECRET", "chat_id": "424242"}})
+
+    response = client.get("/api/debug-config")
+
+    assert response.status_code == 200
+    assert response.json()["telegram"] == {"enabled": True, "bot_token_set": True, "chat_id_set": True}
+    assert "123456" not in response.text and "424242" not in response.text
